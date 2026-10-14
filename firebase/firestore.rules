@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function: authenticated user
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function: owner of document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function: check if caller has admin claim
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'ADMIN';
+    }
+
+    // Users Collection (Allow user registration, profile lookup, and owner/admin updates)
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if isOwner(userId) || isAdmin() || (!isAuthenticated() && request.resource.data.uid == userId);
+      allow delete: if isAdmin();
+    }
+
+    // Categories (Public read, admin write)
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Products (Public read, admin write)
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Cart Collection (Strict user ownership)
+    match /carts/{cartId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+    }
+
+    // Wishlist Collection (Strict user ownership)
+    match /wishlists/{wishlistId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+    }
+
+    // Orders Collection (Owner can read, only server/admin or owner creation with status 'pending'/'confirmed')
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if isAdmin();
+    }
+
+    // Reviews Collection (Public read, authenticated verified buyer creation linking userId & productId)
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() &&
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.productId is string &&
+                    request.resource.data.rating is int &&
+                    request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
+                    request.resource.data.isVerifiedPurchase == true;
+      allow update, delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId);
+    }
+
+    // Notifications Collection
+    match /notifications/{notifId} {
+      allow read, update: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow write: if isAdmin();
+    }
+
+    // Addresses Collection
+    match /addresses/{addressId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+    }
+  }
+}

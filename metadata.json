@@ -1,0 +1,6 @@
+{
+  "name": "Lavina",
+  "description": "Premium online clothing shopping mobile application with luxury fashion catalog, seamless cart, checkout, order tracking, and customer onboarding.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
